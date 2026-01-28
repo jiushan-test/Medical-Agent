@@ -32,15 +32,24 @@ function parseHistoryItem(h: ChatMessage): UiMessage {
   };
 }
 
+function formatAiQuestions(content: string) {
+  return content
+    .replace(/([?？])(?!\s*\n)/g, '$1\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function formatPatientVisibleContent(role: UiMessage['role'], content: string) {
   const trimmed = content.trim();
   if (/^【(医生|医生助理|AI自动回复)】/.test(trimmed)) return content;
 
   if (role === 'assistant') {
-    return `【医生助理】（AI生成内容，仅供参考，请注意甄别） ${content}`;
+    const c = formatAiQuestions(content);
+    return `【医生助理】 ${c}\n（AI生成内容，仅供参考，请注意甄别）`;
   }
   if (role === 'ai') {
-    return `【AI自动回复】（AI生成内容，仅供参考，请注意甄别） ${content}`;
+    const c = formatAiQuestions(content);
+    return `【AI自动回复】 ${c}\n（AI生成内容，仅供参考，请注意甄别）`;
   }
   if (role === 'doctor') {
     return `【医生】 ${content}`;
