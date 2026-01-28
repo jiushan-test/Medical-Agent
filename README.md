@@ -143,6 +143,3 @@ node scripts/seed-demo.js
 - Docker/服务器部署可参考：[DEPLOY.md](./DEPLOY.md)
 - 本项目启用了 standalone 输出：`next.config.ts`
 
-## 扩展设想（企业微信视角）
-项目内还有一份偏"企业微信集成方案/工程化蓝图"的技术文档：
-- [TECHNICAL_DOCS.md](./TECHNICAL_DOCS.md)
