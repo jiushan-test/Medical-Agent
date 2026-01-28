@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Patient, ChatMessage, KnowledgeItem, createPatient, updatePatient, deletePatient, importPatientData, getChatHistory, getPatientMemories, getPatients, getPatient, sendDoctorMessage, getDoctorCopilot, getKnowledgeList, addKnowledge, importKnowledge, getMessageAnalysis, updateKnowledge, deleteKnowledge, resetPatientsAndSeedDemo, startDoctorConsultation } from '@/app/actions';
+import { PatientWithConsultStatus, ChatMessage, KnowledgeItem, createPatient, updatePatient, deletePatient, importPatientData, getChatHistory, getPatientMemories, getPatientsWithConsultStatus, getPatientWithConsultStatus, sendDoctorMessage, getDoctorCopilot, getKnowledgeList, addKnowledge, importKnowledge, getMessageAnalysis, updateKnowledge, deleteKnowledge, resetPatientsAndSeedDemo, startDoctorConsultation } from '@/app/actions';
 import { Plus, Upload, MessageSquare, Brain, Activity, RefreshCw, Send, User, Home, Sparkles, Lightbulb, BookOpen, Database, FileText, Trash2, Edit2, Save, X, Search, ChevronDown, ChevronUp, Stethoscope } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PatientOverview from '@/components/PatientOverview';
 
 interface DoctorDashboardProps {
-  initialPatients: Patient[];
+  initialPatients: PatientWithConsultStatus[];
 }
 
 export default function DoctorDashboard({ initialPatients }: DoctorDashboardProps) {
@@ -17,9 +17,9 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
     related_memories: Array<{ content: string; source: string; created_at: string; score: number }>;
     related_knowledge: Array<{ content: string; category: string; score: number }>;
   };
-  const [patients, setPatients] = useState<Patient[]>(initialPatients);
+  const [patients, setPatients] = useState<PatientWithConsultStatus[]>(initialPatients);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(initialPatients[0]?.id || null);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(initialPatients[0] || null);
+  const [selectedPatient, setSelectedPatient] = useState<PatientWithConsultStatus | null>(initialPatients[0] || null);
   
   // Modals & Tabs
   const [showAddModal, setShowAddModal] = useState(false);
@@ -178,7 +178,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
   };
 
   const loadPatientData = async (id: string) => {
-    const p = await getPatient(id);
+    const p = await getPatientWithConsultStatus(id);
     if (p) setSelectedPatient(p);
     loadChat(id);
     loadMemories(id);
@@ -203,7 +203,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
     if (result.success) {
       setShowAddModal(false);
       // Refresh list
-      const newPatients = await getPatients();
+      const newPatients = await getPatientsWithConsultStatus();
       setPatients(newPatients);
       setSelectedPatientId(result.id); // Select new patient
     }
@@ -212,7 +212,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
   const handleResetDemo = async () => {
     if (!confirm('将清空所有患者与对话记录，并重建演示数据。确定继续吗？')) return;
     await resetPatientsAndSeedDemo();
-    const newPatients = await getPatients();
+    const newPatients = await getPatientsWithConsultStatus();
     setPatients(newPatients);
     if (newPatients.length > 0) {
       setSelectedPatientId(newPatients[0].id);
@@ -231,7 +231,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
       if (result.success) {
           setIsEditingInfo(false);
           // Refresh patient list and current patient data
-          const newPatients = await getPatients();
+          const newPatients = await getPatientsWithConsultStatus();
           setPatients(newPatients);
           loadPatientData(selectedPatientId);
       } else {
@@ -244,7 +244,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
       
       const result = await deletePatient(selectedPatientId);
       if (result.success) {
-          const newPatients = await getPatients();
+          const newPatients = await getPatientsWithConsultStatus();
           setPatients(newPatients);
           // Select another patient if available
           if (newPatients.length > 0) {
@@ -361,12 +361,26 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
               )}
             >
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-semibold">
+                <div
+                  className={cn(
+                    "h-10 w-10 rounded-full border flex items-center justify-center font-semibold",
+                    p.hasActiveConsultation
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      : "bg-slate-100 border-slate-200 text-slate-700"
+                  )}
+                >
                   {(p.name || '患').slice(0, 1)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="font-semibold text-slate-900 truncate">{p.name}</div>
+                    <div className="min-w-0 flex items-center gap-2">
+                      <div className="font-semibold text-slate-900 truncate">{p.name}</div>
+                      {p.hasActiveConsultation && (
+                        <span className="inline-flex shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                          已建立医生会话
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[11px] text-slate-500 whitespace-nowrap">
                       {p.gender} · {p.age}岁
                     </span>
@@ -390,10 +404,20 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
           <div className="flex-1 flex flex-col border-r border-slate-200 bg-gradient-to-b from-slate-50 to-white">
             <div className="p-4 bg-white/80 backdrop-blur border-b border-slate-200 shadow-sm z-10 flex justify-between items-center">
               <div className="flex items-center gap-2 min-w-0">
-                <div className="h-9 w-9 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-semibold">
+                <div
+                  className={cn(
+                    "h-9 w-9 rounded-full border flex items-center justify-center font-semibold",
+                    selectedPatient.hasActiveConsultation
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      : "bg-blue-50 border-blue-100 text-blue-700"
+                  )}
+                >
                   {(selectedPatient.name || '患').slice(0, 1)}
                 </div>
                 <h3 className="font-bold text-lg text-slate-900 truncate">{selectedPatient.name}</h3>
+                {selectedPatient.hasActiveConsultation && (
+                  <span className="text-xs text-emerald-700 whitespace-nowrap">已建立医生会话</span>
+                )}
                 <span className="text-xs text-slate-500 whitespace-nowrap">实时对话</span>
               </div>
               <Link 
@@ -433,16 +457,16 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                         >
                             <div
                               className={cn(
-                                'max-w-[78%] px-4 py-3 text-sm leading-relaxed shadow-sm',
+                                'max-w-[78%] px-4 py-3 text-[15px] leading-relaxed shadow-sm',
                                 isAI
                                   ? 'rounded-2xl bg-slate-100 text-slate-600 border border-slate-200'
                                   : isDoctor
-                                    ? 'rounded-2xl rounded-tr-md bg-gradient-to-b from-blue-600 to-blue-700 text-white'
+                                    ? 'rounded-2xl rounded-tr-md bg-blue-600 text-white border border-white/10'
                                     : 'rounded-2xl rounded-tl-md bg-white text-slate-800 border border-slate-200'
                               )}
                             >
                                 {isUser && <span className="block text-[11px] text-slate-500 mb-1 font-semibold">患者</span>}
-                                {isDoctor && <span className="block text-[11px] text-white/80 mb-1 font-semibold">医生助理</span>}
+                                {isDoctor && <span className="block text-xs text-white mb-1 font-bold">医生助理</span>}
                                 {isAI && <span className="block text-[11px] text-slate-500 mb-1 font-semibold">系统</span>}
                                 <span className="whitespace-pre-wrap">{text}</span>
                             </div>
@@ -452,7 +476,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                                 <div className={cn("mt-1 w-full max-w-[80%]", isDoctor ? "self-end" : "self-start")}>
                                     <button 
                                         onClick={() => toggleAnalysis(msg.id)}
-                                        className="text-xs text-slate-400 hover:text-blue-600 flex items-center gap-1 transition"
+                                        className="text-xs text-slate-600 hover:text-blue-700 flex items-center gap-1 transition"
                                     >
                                         {expandedMsgId === msg.id ? <ChevronUp size={12}/> : <Search size={12}/>}
                                         {expandedMsgId === msg.id ? '收起分析' : '查看 AI 提取与关联'}
@@ -550,9 +574,16 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                     <div className="flex justify-between items-center">
                         <button 
                             type="button"
-                            onClick={handleGetCopilot}
-                            disabled={isCopilotLoading}
-                            className="text-xs flex items-center gap-1 text-purple-700 hover:bg-purple-50 px-2 py-1 rounded-lg transition"
+                            onClick={() => {
+                              if (isCopilotLoading) return;
+                              handleGetCopilot();
+                            }}
+                            aria-disabled={isCopilotLoading}
+                            className={cn(
+                              "text-xs flex items-center gap-1 px-2 py-1 rounded-lg transition text-purple-700",
+                              isCopilotLoading ? "cursor-not-allowed text-purple-400" : "hover:bg-purple-50"
+                            )}
+                            style={{ color: isCopilotLoading ? "#c084fc" : "#7e22ce" }}
                         >
                             {isCopilotLoading ? <RefreshCw className="animate-spin" size={12}/> : <Sparkles size={12}/>}
                             {isCopilotLoading ? '正在生成建议...' : '重新生成建议'}
@@ -823,7 +854,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                                                 onChange={(e) => setEditKbContent(e.target.value)}
                                               />
                                               <div className="flex gap-2 justify-end">
-                                                <button onClick={() => setEditingKbId(null)} className="text-slate-400 hover:text-slate-600">取消</button>
+                                                <button onClick={() => setEditingKbId(null)} className="text-slate-600 hover:text-slate-800">取消</button>
                                                 <button onClick={() => saveEditKb(k.id)} className="text-blue-600 hover:text-blue-700 font-bold">保存</button>
                                               </div>
                                             </div>

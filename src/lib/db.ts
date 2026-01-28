@@ -76,6 +76,17 @@ const initDb = () => {
     )
   `);
 
+  // 2.6 创建 patient_ai_state 表（患者端自动回复策略状态）
+  // medical_inquiry_count: 已发送的“病情询问”自动消息条数（最多 3）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS patient_ai_state (
+      patient_id TEXT PRIMARY KEY,
+      medical_inquiry_count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY(patient_id) REFERENCES patients(id) ON DELETE CASCADE
+    )
+  `);
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS doctor_consultations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,6 +117,7 @@ const initDb = () => {
   // 创建索引以加速查询（可选）
   db.exec(`CREATE INDEX IF NOT EXISTS idx_memories_patient_id ON memories(patient_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_chat_messages_patient_id ON chat_messages(patient_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_patient_ai_state_patient_id ON patient_ai_state(patient_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_doctor_consultations_patient_id ON doctor_consultations(patient_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_doctor_consultations_status ON doctor_consultations(status)`);
 };

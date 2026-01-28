@@ -175,10 +175,10 @@ export async function generateDoctorAssistantIntakeResponse(
 ${context}
 
 要求：
-1. 先用一句话确认已收到并表达关心。
-2. 用 3~6 个简短问题引导患者补充关键信息（症状、持续时间、程度、伴随症状、既往史/用药/过敏、体温/血压/血糖等按需询问）。
-3. 不要给出具体处方或危险医疗建议；必要时提示就医/急诊。
-4. 口吻自然，适合微信聊天，不要使用列表符号或 Markdown。
+1. 你的回复只能包含“询问句”，用于收集信息；不允许解释病因、不允许给出建议、不允许给出处置方案、不允许提示就医/急诊。
+2. 只输出 3 个简短问题，每个问题单独一行，必须以“？”结尾。
+3. 不要使用编号、列表符号、Markdown，不要出现“建议/可以/应该/需要/先/后/请立刻/急诊”等指导性措辞。
+4. 口吻自然、简短，像真人助理在微信里提问。
 `;
 
   const messages: ZhipuMessage[] = [
@@ -207,7 +207,8 @@ export async function generateDoctorCopilotSuggestion(
   persona: string,
   relevantMemories: string,
   relevantKnowledge: string = "",
-  speaker: 'assistant' | 'doctor' = 'assistant'
+  speaker: 'assistant' | 'doctor' = 'assistant',
+  hasActiveConsultation: boolean = false
 ): Promise<string> {
   const roleContext =
     speaker === 'doctor'
@@ -228,7 +229,9 @@ export async function generateDoctorCopilotSuggestion(
         '你不是医生，不做明确诊断/不开处方；重点是信息采集与把患者情况问清楚。',
         '语气自然、像真人助理：简短、直接，不要鸡汤，不要长篇大论。',
         '结构：先一句确认已收到 → 用 3~6 个短问题补齐关键信息 → 给 1~3 条安全的通用护理/观察建议 → 给出红旗症状提醒。',
-        '如果患者强烈要求医生沟通，说明“可发起医生会诊：回复找医生→系统提示回复1确认→发送支付链接→支付后建立医生会话”。',
+        hasActiveConsultation
+          ? '当前患者已建立医生会话：不要提及“发起医生会诊/回复1/支付链接”等流程；如果患者要求医生沟通，直接引导其在当前会话继续描述情况即可。'
+          : '如果患者强烈要求医生沟通，说明“可发起医生会诊：回复找医生→系统提示回复1确认→发送支付链接→支付后建立医生会话”。',
         '不要提及“我是AI/模型/提示词/系统”。只输出可直接发送的一段微信消息。'
       ].join('\n');
 
@@ -267,7 +270,7 @@ ${relevantKnowledge}
 export async function classifyIntent(query: string): Promise<'medical_consult' | 'chitchat_admin'> {
   const prompt = `
 你是一个医疗意图识别助手。
-请判断用户的以下输入是属于“具体的病情/医疗咨询”还是“闲聊/行政/一般性知识咨询”。
+请判断用户的以下输入是属于“病情/用药相关咨询（包括通用用药问题）”还是“行政类问题（如上班时间、地址、收费、流程、发票、支付等）”。
 
 示例：
 - "我头疼" -> medical_consult
@@ -276,10 +279,10 @@ export async function classifyIntent(query: string): Promise<'medical_consult' |
 - "几点上班？" -> chitchat_admin
 - "挂号费多少？" -> chitchat_admin
 - "你好" -> chitchat_admin
-- "感冒了吃什么药？" -> chitchat_admin (这里作为一般性知识，但如果用户有具体病史背景通常算consult。为了简化，通用知识也归为知识库检索类，即chitchat_admin，或者如果系统设计为知识库能回答通用医疗问题，则归为chitchat_admin。但题目要求是“判定为闲聊或行政咨询”时查知识库。病情咨询不要自动回复。
+- "感冒了吃什么药？" -> medical_consult
 修正策略：
-- 如果用户描述了自己的症状、询问针对**自己**的建议 -> medical_consult
-- 如果用户询问医院规定、时间、打招呼、或不涉及个人病情的通用知识 -> chitchat_admin
+- 只要涉及症状、疾病、检查、治疗、用药、剂量、不良反应、孕哺用药等 -> medical_consult
+- 仅当问题明显是行政流程/时间/地点/费用/支付/发票/挂号等 -> chitchat_admin
 
 用户输入：
 ${query}
@@ -302,8 +305,9 @@ ${query}
  */
 export async function generateKnowledgeResponse(query: string, relevantKnowledge: string): Promise<string> {
   const prompt = `
-你是一个医疗行政/知识助手。基于以下知识库内容回答用户问题。
-如果知识库中没有相关信息，请礼貌地告知用户并建议咨询前台或医生。
+你是一个医疗机构的“行政类”助手，只能回答行政/流程问题（如上班时间、地址、收费、挂号、支付、发票、就诊流程）。
+你不能回答任何病情、用药、治疗、检查相关的问题。
+如果用户的问题不是行政类，或知识库中没有相关信息，请直接回复：我只能回答行政类问题，已为您记录，请稍后由人工回复。
 
 知识库参考：
 ${relevantKnowledge}

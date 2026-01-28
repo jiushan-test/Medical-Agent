@@ -16,6 +16,10 @@ export interface Patient {
   created_at: string;
 }
 
+export interface PatientWithConsultStatus extends Patient {
+  hasActiveConsultation: boolean;
+}
+
 export interface Memory {
   id: number;
   patient_id: string;
@@ -97,6 +101,52 @@ async function safeExtractKeywords(text: string, source: 'patient' | 'doctor' | 
 
 function buildDoctorAssistantIntro(): string {
   return `您好，我是${doctorName}的助理。我会先帮您把情况记录清楚，方便医生更快了解。请您先说一下：最主要哪里不舒服？从什么时候开始？有没有发烧/咳嗽/疼痛等情况？`;
+}
+
+function isMedicalRelatedText(text: string): boolean {
+  const t = text.replace(/\s+/g, '');
+  return /药|用药|剂量|副作用|不良反应|过敏|症状|疼|痛|发烧|发热|咳嗽|头晕|腹泻|呕吐|心慌|胸闷|气短|呼吸困难|血压|血糖|心率|感染|炎|高血压|糖尿病|感冒|怀孕|哺乳|诊断|治疗|检查|化验|CT|核磁|B超/.test(t);
+}
+
+function ensurePatientAiStateRow(patientId: string) {
+  db.prepare(
+    `INSERT OR IGNORE INTO patient_ai_state (patient_id, medical_inquiry_count) VALUES (?, 0)`
+  ).run(patientId);
+}
+
+function getMedicalInquiryCount(patientId: string): number {
+  ensurePatientAiStateRow(patientId);
+  const row = db
+    .prepare('SELECT medical_inquiry_count FROM patient_ai_state WHERE patient_id = ?')
+    .get(patientId) as { medical_inquiry_count: number } | undefined;
+  if (!row) return 0;
+  if (row.medical_inquiry_count > 0) return row.medical_inquiry_count;
+
+  const recent = db
+    .prepare("SELECT content FROM chat_messages WHERE patient_id = ? AND role = 'ai' ORDER BY id ASC LIMIT 20")
+    .all(patientId) as { content: string }[];
+
+  const estimated = recent.reduce((acc, r) => {
+    const c = r.content.trim();
+    if (!c) return acc;
+    if (c.includes('医生会诊') || c.includes('支付') || c.includes('确认接入')) return acc;
+    if (c.includes('上班') || c.includes('营业') || c.includes('地址') || c.includes('挂号') || c.includes('发票') || c.includes('支付')) return acc;
+    if (c.includes('助理') && (c.includes('请') || c.includes('麻烦') || c.includes('补充'))) return acc + 1;
+    return acc;
+  }, 0);
+
+  const nextCount = Math.min(3, estimated);
+  if (nextCount > 0) {
+    db.prepare('UPDATE patient_ai_state SET medical_inquiry_count = ?, updated_at = datetime(\'now\', \'localtime\') WHERE patient_id = ?').run(nextCount, patientId);
+  }
+  return nextCount;
+}
+
+function incrementMedicalInquiryCount(patientId: string) {
+  ensurePatientAiStateRow(patientId);
+  db.prepare(
+    'UPDATE patient_ai_state SET medical_inquiry_count = medical_inquiry_count + 1, updated_at = datetime(\'now\', \'localtime\') WHERE patient_id = ?'
+  ).run(patientId);
 }
 
 function insertChatMessage(patientId: string, role: 'user' | 'ai' | 'assistant' | 'doctor', content: string): number {
@@ -280,6 +330,8 @@ async function ensurePatientIntroMessage(patientId: string) {
 
   const content = buildDoctorAssistantIntro();
   insertChatMessage(patientId, 'ai', content);
+  ensurePatientAiStateRow(patientId);
+  db.prepare('UPDATE patient_ai_state SET medical_inquiry_count = 1, updated_at = datetime(\'now\', \'localtime\') WHERE patient_id = ?').run(patientId);
 }
 
 async function storeKeywordsToMemories(
@@ -349,6 +401,33 @@ export async function getPatients(): Promise<Patient[]> {
   }
 }
 
+export async function getPatientsWithConsultStatus(): Promise<PatientWithConsultStatus[]> {
+  try {
+    const stmt = db.prepare(`
+      SELECT
+        p.*,
+        EXISTS(
+          SELECT 1
+          FROM doctor_consultations c
+          WHERE c.patient_id = p.id
+            AND c.status = 'paid'
+            AND c.ended_at IS NULL
+          LIMIT 1
+        ) AS has_active_consultation
+      FROM patients p
+      ORDER BY p.created_at DESC
+    `);
+    const rows = stmt.all() as Array<Patient & { has_active_consultation: 0 | 1 }>;
+    return rows.map((r) => ({
+      ...r,
+      hasActiveConsultation: Boolean(r.has_active_consultation),
+    }));
+  } catch (error) {
+    console.error("Failed to get patients with consult status:", error);
+    return [];
+  }
+}
+
 // Action: 获取患者最近一条对话消息（用于消息列表预览）
 export async function getLastDialogueMessage(patientId: string): Promise<LastDialogueMessage | null> {
   const stmt = db.prepare(
@@ -405,6 +484,27 @@ export async function getPatient(id: string): Promise<Patient | undefined> {
   return stmt.get(id) as Patient | undefined;
 }
 
+export async function getPatientWithConsultStatus(id: string): Promise<PatientWithConsultStatus | undefined> {
+  const stmt = db.prepare(`
+    SELECT
+      p.*,
+      EXISTS(
+        SELECT 1
+        FROM doctor_consultations c
+        WHERE c.patient_id = p.id
+          AND c.status = 'paid'
+          AND c.ended_at IS NULL
+        LIMIT 1
+      ) AS has_active_consultation
+    FROM patients p
+    WHERE p.id = ?
+    LIMIT 1
+  `);
+  const row = stmt.get(id) as (Patient & { has_active_consultation: 0 | 1 }) | undefined;
+  if (!row) return undefined;
+  return { ...row, hasActiveConsultation: Boolean(row.has_active_consultation) };
+}
+
 export async function resetPatientsAndSeedDemo() {
   const now = new Date();
   const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -428,6 +528,7 @@ export async function resetPatientsAndSeedDemo() {
   db.transaction(() => {
     db.prepare('DELETE FROM doctor_consultations').run();
     db.prepare('DELETE FROM chat_messages').run();
+    db.prepare('DELETE FROM patient_ai_state').run();
     db.prepare('DELETE FROM memories').run();
     db.prepare('DELETE FROM patients').run();
 
@@ -720,6 +821,9 @@ export async function processUserMessage(patientId: string, message: string, his
     } catch {
       intent = 'medical_consult';
     }
+    if (intent === 'chitchat_admin' && isMedicalRelatedText(message)) {
+      intent = 'medical_consult';
+    }
     console.log(`[Intent] 用户消息: "${message}" -> 意图: ${intent}`);
 
     const queryVec = await safeGetEmbedding(message);
@@ -734,6 +838,12 @@ export async function processUserMessage(patientId: string, message: string, his
 
     // 分支逻辑
     if (intent === 'medical_consult') {
+        const MAX_MEDICAL_INQUIRIES = 3;
+        const inquiryCount = getMedicalInquiryCount(patientId);
+        if (inquiryCount >= MAX_MEDICAL_INQUIRIES) {
+          return { response: '', relatedFacts: '', intent: 'medical_consult' };
+        }
+
         const patient = db
           .prepare('SELECT persona, age, gender, condition FROM patients WHERE id = ?')
           .get(patientId) as { persona: string | null; age: number | null; gender: string | null; condition: string | null } | undefined;
@@ -749,17 +859,18 @@ export async function processUserMessage(patientId: string, message: string, his
         try {
           response = await generateDoctorAssistantIntakeResponse(doctorName, message, context, patient?.persona || '', history);
         } catch {
-          response = `我收到啦，我是${doctorName}的助理。为了让医生更快判断情况，麻烦您补充一下：主要症状是什么？从什么时候开始？严重到什么程度？有没有发烧/呼吸困难/胸痛等情况？目前有无在用药或过敏史？`;
+          response = `您现在最主要的不舒服是什么？\n从什么时候开始的？最近有加重吗？\n目前有没有在用药或已知过敏？`;
         }
 
         insertChatMessage(patientId, 'ai', response);
+        incrementMedicalInquiryCount(patientId);
         await storeKeywordsToMemories(patientId, 'ai', response);
         return { response, relatedFacts: context, intent: 'medical_consult' };
     } else {
         // 2b. 闲聊/行政：检索知识库并回复
       
       // 检索知识库
-      const allKnowledge = db.prepare('SELECT content, embedding FROM knowledge_base').all() as { content: string, embedding: string }[];
+      const allKnowledge = db.prepare("SELECT content, embedding FROM knowledge_base WHERE category = 'admin'").all() as { content: string, embedding: string }[];
       
       const scoredKnowledge = queryVec
         ? allKnowledge.map(k => ({
@@ -941,6 +1052,12 @@ export async function sendRealDoctorMessage(patientId: string, message: string) 
 // Action: 获取医生辅助建议
 export async function getDoctorCopilot(patientId: string, speaker: 'assistant' | 'doctor' = 'assistant') {
   const patient = db.prepare('SELECT * FROM patients WHERE id = ?').get(patientId) as Patient;
+  const activeConsultation = db
+    .prepare(
+      "SELECT id FROM doctor_consultations WHERE patient_id = ? AND status = 'paid' AND ended_at IS NULL ORDER BY id DESC LIMIT 1"
+    )
+    .get(patientId) as { id: number } | undefined;
+  const hasActiveConsultation = Boolean(activeConsultation);
   
   // 1. 检索最近的对话/记忆
   const memories = db
@@ -979,7 +1096,8 @@ export async function getDoctorCopilot(patientId: string, speaker: 'assistant' |
     patient.persona,
     memoryText,
     relevantKnowledge,
-    speaker
+    speaker,
+    hasActiveConsultation
   );
 
   return suggestion;

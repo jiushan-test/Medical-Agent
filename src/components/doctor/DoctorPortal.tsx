@@ -238,9 +238,9 @@ export default function DoctorPortal({ initialItems }: { initialItems: DoctorPor
                   >
                     <div
                       className={cn(
-                        'max-w-[78%] px-4 py-3 text-sm leading-relaxed shadow-sm',
+                        'max-w-[78%] px-4 py-3 text-[15px] leading-relaxed shadow-sm',
                         isDoctor
-                          ? 'rounded-2xl rounded-tr-md bg-gradient-to-b from-emerald-600 to-emerald-700 text-white'
+                          ? 'rounded-2xl rounded-tr-md bg-emerald-600 text-white border border-white/10'
                           : isUser
                             ? 'rounded-2xl rounded-tl-md bg-white text-slate-800 border border-slate-200'
                             : isAi
@@ -251,7 +251,7 @@ export default function DoctorPortal({ initialItems }: { initialItems: DoctorPor
                       {isUser && <span className="block text-[11px] text-slate-500 mb-1 font-semibold">患者</span>}
                       {isAssistant && <span className="block text-[11px] text-slate-500 mb-1 font-semibold">医生助理</span>}
                       {isAi && <span className="block text-[11px] text-slate-500 mb-1 font-semibold">系统</span>}
-                      {isDoctor && <span className="block text-[11px] text-white/80 mb-1 font-semibold">医生</span>}
+                      {isDoctor && <span className="block text-xs text-white mb-1 font-bold">医生</span>}
                       <span className="whitespace-pre-wrap">{msg.content}</span>
                     </div>
                   </div>
@@ -301,9 +301,16 @@ export default function DoctorPortal({ initialItems }: { initialItems: DoctorPor
             <div className="flex justify-between items-center">
               <button
                 type="button"
-                onClick={handleGetCopilot}
-                disabled={isCopilotLoading || !selectedPatientId}
-                className="text-xs flex items-center gap-1 text-purple-700 hover:bg-purple-50 px-2 py-1 rounded-lg transition disabled:opacity-50"
+                onClick={() => {
+                  if (isCopilotLoading || !selectedPatientId) return;
+                  handleGetCopilot();
+                }}
+                aria-disabled={isCopilotLoading || !selectedPatientId}
+                className={cn(
+                  "text-xs flex items-center gap-1 px-2 py-1 rounded-lg transition text-purple-700",
+                  isCopilotLoading || !selectedPatientId ? "cursor-not-allowed text-purple-400" : "hover:bg-purple-50"
+                )}
+                style={{ color: isCopilotLoading || !selectedPatientId ? "#c084fc" : "#7e22ce" }}
               >
                 {isCopilotLoading ? <RefreshCw className="animate-spin" size={12} /> : <Sparkles size={12} />}
                 {isCopilotLoading ? '正在生成建议...' : '重新生成建议'}
