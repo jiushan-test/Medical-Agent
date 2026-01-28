@@ -1,5 +1,5 @@
-# 使用阿里云镜像站的 Node.js 20 镜像 (Next.js 16 要求 Node >= 20.9.0)
-FROM registry.cn-hangzhou.aliyuncs.com/library/node:20-alpine AS base
+# 使用镜像代理的 Node.js 20 镜像 (Next.js 16 要求 Node >= 20.9.0)
+FROM docker.m.daocloud.io/library/node:20-alpine AS base
 
 # 安装基础依赖 (better-sqlite3 需要 python 和 build-base)
 FROM base AS deps
