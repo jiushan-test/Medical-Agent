@@ -1,5 +1,7 @@
-# 使用网易镜像的 Node.js 20 镜像 (Next.js 16 要求 Node >= 20.9.0)
-FROM hub-mirror.c.163.com/library/node:20-alpine AS base
+# Node.js 20 镜像 (Next.js 16 要求 Node >= 20.9.0)
+# 如需国内镜像，可在构建时覆盖：--build-arg BASE_IMAGE=registry.cn-hangzhou.aliyuncs.com/library/node:20-alpine
+ARG BASE_IMAGE=node:20-alpine
+FROM ${BASE_IMAGE} AS base
 
 # 安装基础依赖 (better-sqlite3 需要 python 和 build-base)
 FROM base AS deps
