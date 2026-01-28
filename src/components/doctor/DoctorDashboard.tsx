@@ -382,12 +382,12 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                       )}
                     </div>
                     <span className="text-[11px] text-slate-500 whitespace-nowrap">
-                      {p.gender} · {p.age}岁
+                      {(p.gender || '—') + ' · ' + (p.age != null ? `${p.age}岁` : '—')}
                     </span>
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="inline-flex max-w-full truncate rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 border border-slate-200">
-                      {p.condition}
+                      {p.condition || '—'}
                     </span>
                   </div>
                 </div>
@@ -727,7 +727,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                                 <span className="text-slate-500">年龄:</span>
-                                <span className="col-span-2 text-slate-900">{selectedPatient.age} 岁</span>
+                                <span className="col-span-2 text-slate-900">{selectedPatient.age != null ? `${selectedPatient.age} 岁` : '—'}</span>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                                 <span className="text-slate-500">建档时间:</span>
@@ -749,7 +749,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                             <div className="flex gap-4">
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-slate-700">年龄</label>
-                                    <input name="age" type="number" defaultValue={selectedPatient.age} required className="w-full p-2 border rounded mt-1 text-slate-900 text-sm" />
+                                <input name="age" type="number" defaultValue={selectedPatient.age ?? ''} required className="w-full p-2 border rounded mt-1 text-slate-900 text-sm" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-slate-700">性别</label>

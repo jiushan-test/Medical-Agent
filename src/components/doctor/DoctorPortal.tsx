@@ -175,12 +175,12 @@ export default function DoctorPortal({ initialItems }: { initialItems: DoctorPor
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-semibold text-slate-900 truncate">{it.patient.name}</div>
                       <span className="text-[11px] text-slate-500 whitespace-nowrap">
-                        {it.patient.gender} · {it.patient.age}岁
+                        {(it.patient.gender || '—') + ' · ' + (it.patient.age != null ? `${it.patient.age}岁` : '—')}
                       </span>
                     </div>
                     <div className="mt-1 flex items-center gap-2">
                       <span className="inline-flex max-w-full truncate rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 border border-slate-200">
-                        {it.patient.condition}
+                        {it.patient.condition || '—'}
                       </span>
                       <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] text-emerald-700 border border-emerald-200">
                         已支付

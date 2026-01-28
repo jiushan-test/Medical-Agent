@@ -9,10 +9,10 @@ import { revalidatePath } from 'next/cache';
 export interface Patient {
   id: string;
   name: string;
-  age: number;
-  gender: string;
-  condition: string;
-  persona: string;
+  age: number | null;
+  gender: string | null;
+  condition: string | null;
+  persona: string | null;
   created_at: string;
 }
 
@@ -1140,7 +1140,13 @@ export async function getDoctorCopilot(patientId: string, speaker: 'assistant' |
   }
 
   const suggestion = await generateDoctorCopilotSuggestion(
-    `${patient.name}, ${patient.age}岁, ${patient.condition}`,
+    [
+      patient.name,
+      patient.age != null ? `${patient.age}岁` : '',
+      patient.condition ?? '',
+    ]
+      .filter(Boolean)
+      .join('，'),
     patient.persona,
     memoryText,
     relevantKnowledge,

@@ -127,7 +127,9 @@ export default function PatientChat({ patients }: PatientChatProps) {
                     onChange={(e) => setSelectedPatientId(e.target.value)}
                 >
                     {patients.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} ({p.gender}, {p.age}岁)</option>
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.gender || '—'}, {p.age != null ? `${p.age}岁` : '—'})
+                        </option>
                     ))}
                 </select>
             </div>

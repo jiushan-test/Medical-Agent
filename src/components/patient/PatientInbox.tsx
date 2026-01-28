@@ -295,13 +295,13 @@ export default function PatientInbox({ patients }: PatientInboxProps) {
                 >
                   {patients.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}（{p.gender}，{p.age}岁）
+                      {p.name}（{p.gender || '—'}，{p.age != null ? `${p.age}岁` : '—'}）
                     </option>
                   ))}
                 </select>
                 {selectedPatient && (
                   <div className="mt-3 text-xs text-slate-500">
-                    当前患者：{selectedPatient.name} · {selectedPatient.condition}
+                    当前患者：{selectedPatient.name} · {selectedPatient.condition || '—'}
                   </div>
                 )}
               </div>
