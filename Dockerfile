@@ -21,6 +21,10 @@ COPY . .
 
 # 设置环境变量
 ENV NEXT_TELEMETRY_DISABLED 1
+# 某些小内存机器构建 Next.js 容易触发 Node 内存不足，可在构建时覆盖：
+# docker build --build-arg BUILD_NODE_OPTIONS="--max-old-space-size=4096" ...
+ARG BUILD_NODE_OPTIONS=--max-old-space-size=2048
+ENV NODE_OPTIONS=${BUILD_NODE_OPTIONS}
 # 如果有 Zhipu Key，可以在构建时传入，或者运行时传入 (推荐运行时)
 # ENV ZHIPU_API_KEY="" 
 
