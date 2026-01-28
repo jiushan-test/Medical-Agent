@@ -1,5 +1,10 @@
 # Medical Agent 部署指南 (CentOS 7)
 
+## 📦 仓库地址
+- GitHub: https://github.com/jiushan-test/Medical-Agent
+
+---
+
 由于 CentOS 7 系统较老（已于 2024 年停止维护），直接安装最新的 Node.js 18/20 和编译 SQLite 依赖可能会遇到 `glibc` 版本过低或 GCC 版本过低的问题。
 
 **强烈推荐使用方案一（Docker 部署），它可以屏蔽系统差异，一键运行。**
@@ -43,12 +48,15 @@ sudo systemctl start docker
 sudo systemctl enable docker
 ```
 
-### 2. 部署项目
-1.  **上传代码**：将项目代码上传到服务器（排除 `node_modules`, `.next`, `.git`）。
+### 2. 获取代码并部署
+1.  **克隆仓库**：
+    ```bash
+    git clone https://github.com/jiushan-test/Medical-Agent.git
+    cd Medical-Agent
+    ```
 2.  **构建镜像**：
     在项目根目录下运行：
     ```bash
-    # 替换 your_key 为你的智谱 API Key，或者稍后在运行参数中指定
     docker build -t medical-agent .
     ```
 3.  **运行容器**：
@@ -94,16 +102,18 @@ sudo yum install -y gcc-c++ make
 ```
 *注意：如果 `better-sqlite3` 安装失败报错 GCC 版本过低，你需要安装 `devtoolset-9`。*
 
-### 2. 项目安装
-1.  **上传代码** 到 `/var/www/medical-agent` (或其他目录)。
+### 2. 获取代码并安装
+1.  **克隆仓库**：
+    ```bash
+    git clone https://github.com/jiushan-test/Medical-Agent.git
+    cd Medical-Agent
+    ```
 2.  **安装依赖**：
     ```bash
-    cd /var/www/medical-agent
     npm install
     ```
 3.  **构建项目**：
     ```bash
-    # 设置环境变量构建
     npm run build
     ```
 
