@@ -5,8 +5,8 @@ FROM ${BASE_IMAGE} AS base
 
 # 安装基础依赖 (better-sqlite3 需要 python 和 build-base)
 FROM base AS deps
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
-RUN apk add --no-cache libc6-compat python3 make g++
+RUN if command -v apk >/dev/null 2>&1; then sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories; fi
+RUN if command -v apk >/dev/null 2>&1; then apk add --no-cache libc6-compat python3 make g++ coreutils bash; else apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates && rm -rf /var/lib/apt/lists/*; fi
 WORKDIR /app
 
 # 复制依赖文件
