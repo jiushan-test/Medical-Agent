@@ -784,8 +784,8 @@ export async function importPatientData(patientId: string, textData: string) {
   await storeKeywordsToMemories(patientId, 'import', textData);
 
   // 3. 更新画像
-  const patient = db.prepare('SELECT persona FROM patients WHERE id = ?').get(patientId) as { persona: string };
-  const newPersona = await updatePersona(patient.persona, textData); // 用原始文本更新画像，或者用事实列表更新
+  const patient = db.prepare('SELECT persona FROM patients WHERE id = ?').get(patientId) as { persona: string | null } | undefined;
+  const newPersona = await updatePersona(patient?.persona ?? '', textData); // 用原始文本更新画像，或者用事实列表更新
   
   db.prepare('UPDATE patients SET persona = ? WHERE id = ?').run(newPersona, patientId);
   console.log(`[Persona] 画像已更新。`);
@@ -877,9 +877,9 @@ export async function processUserMessage(patientId: string, message: string, his
     const queryVec = await safeGetEmbedding(message);
 
     try {
-      const p = db.prepare('SELECT persona FROM patients WHERE id = ?').get(patientId) as { persona: string } | undefined;
+      const p = db.prepare('SELECT persona FROM patients WHERE id = ?').get(patientId) as { persona: string | null } | undefined;
       if (p) {
-        const newPersona = await updatePersona(p.persona, message);
+        const newPersona = await updatePersona(p.persona ?? '', message);
         db.prepare('UPDATE patients SET persona = ? WHERE id = ?').run(newPersona, patientId);
       }
     } catch {}

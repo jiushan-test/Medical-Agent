@@ -385,7 +385,7 @@ export default function DoctorPortal({ initialItems }: { initialItems: DoctorPor
                       <Activity size={16} /> 当前画像
                     </h4>
                     <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap">
-                      {selectedPatient.persona}
+                      {selectedPatient.persona || ''}
                     </p>
                   </div>
                   <div className="text-xs text-slate-400">
@@ -413,11 +413,11 @@ export default function DoctorPortal({ initialItems }: { initialItems: DoctorPor
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         <span className="text-slate-500">性别:</span>
-                        <span className="col-span-2 text-slate-900">{selectedPatient.gender}</span>
+                        <span className="col-span-2 text-slate-900">{selectedPatient.gender || '—'}</span>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         <span className="text-slate-500">年龄:</span>
-                        <span className="col-span-2 text-slate-900">{selectedPatient.age} 岁</span>
+                        <span className="col-span-2 text-slate-900">{selectedPatient.age != null ? `${selectedPatient.age} 岁` : '—'}</span>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         <span className="text-slate-500">建档时间:</span>
@@ -426,7 +426,7 @@ export default function DoctorPortal({ initialItems }: { initialItems: DoctorPor
                       <div className="pt-2 border-t border-slate-100">
                         <span className="block text-slate-500 mb-1">基础病情:</span>
                         <div className="bg-red-50 text-red-700 p-2 rounded border border-red-100">
-                          {selectedPatient.condition}
+                          {selectedPatient.condition || '—'}
                         </div>
                       </div>
                     </div>

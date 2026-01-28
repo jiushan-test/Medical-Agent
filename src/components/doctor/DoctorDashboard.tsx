@@ -723,7 +723,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                                 <span className="text-slate-500">性别:</span>
-                                <span className="col-span-2 text-slate-900">{selectedPatient.gender}</span>
+                                <span className="col-span-2 text-slate-900">{selectedPatient.gender || '—'}</span>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                                 <span className="text-slate-500">年龄:</span>
@@ -736,7 +736,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                             <div className="pt-2 border-t border-slate-100">
                                 <span className="block text-slate-500 mb-1">基础病情:</span>
                                 <div className="bg-red-50 text-red-700 p-2 rounded border border-red-100">
-                                    {selectedPatient.condition}
+                                    {selectedPatient.condition || '—'}
                                 </div>
                             </div>
                         </div>
@@ -753,7 +753,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-slate-700">性别</label>
-                                    <select name="gender" defaultValue={selectedPatient.gender} className="w-full p-2 border rounded mt-1 text-slate-900 text-sm">
+                                    <select name="gender" defaultValue={selectedPatient.gender ?? ''} className="w-full p-2 border rounded mt-1 text-slate-900 text-sm">
                                         <option>男</option>
                                         <option>女</option>
                                     </select>
@@ -763,7 +763,7 @@ export default function DoctorDashboard({ initialPatients }: DoctorDashboardProp
                                 <label className="block text-sm font-medium text-slate-700">基础病情</label>
                                 <textarea 
                                     name="condition" 
-                                    defaultValue={selectedPatient.condition} 
+                                    defaultValue={selectedPatient.condition ?? ''} 
                                     required 
                                     className="w-full p-2 border rounded mt-1 text-slate-900 text-sm h-32 resize-none" 
                                 />
