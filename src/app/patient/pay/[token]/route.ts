@@ -17,7 +17,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
   const result = await markDoctorConsultationPaidByToken(token);
   const origin = getSafeOrigin(req);
  
-  if (!result.success) {
+  const patientId = result.success && 'patientId' in result ? result.patientId : undefined;
+  if (!result.success || !patientId) {
     return NextResponse.redirect(new URL('/patient?pay=failed', origin));
   }
  
@@ -26,5 +27,5 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
   revalidatePath('/patient');
  
   const ts = Date.now();
-  return NextResponse.redirect(new URL(`/patient/chat/${encodeURIComponent(result.patientId)}?paid=1&t=${ts}`, origin));
+  return NextResponse.redirect(new URL(`/patient/chat/${encodeURIComponent(patientId)}?paid=1&t=${ts}`, origin));
 }
