@@ -1158,9 +1158,9 @@ export async function getDoctorCopilot(patientId: string, speaker: 'assistant' |
 }
 
 // Action: 获取患者的记忆列表（用于前端展示）
-export async function getPatientMemories(patientId: string) {
+export async function getPatientMemories(patientId: string): Promise<Array<{ id: number; content: string; source: string | null; created_at: string }>> {
   const stmt = db.prepare(
     "SELECT id, content, source, created_at FROM memories WHERE patient_id = ? AND source != 'dialogue' ORDER BY created_at DESC LIMIT 50"
   );
-  return stmt.all(patientId);
+  return stmt.all(patientId) as Array<{ id: number; content: string; source: string | null; created_at: string }>;
 }
