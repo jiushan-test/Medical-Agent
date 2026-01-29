@@ -3,7 +3,7 @@ FROM ${BASE_IMAGE} AS base
 
 FROM base AS deps
 RUN if command -v apk >/dev/null 2>&1; then sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories; fi
-RUN if command -v apk >/dev/null 2>&1; then apk add --no-cache libc6-compat python3 make g++ coreutils bash; else export DEBIAN_FRONTEND=noninteractive && apt-get -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true update && apt-get install -y --no-install-recommends --allow-unauthenticated ca-certificates debian-archive-keyring && apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*; fi
+RUN if command -v apk >/dev/null 2>&1; then apk add --no-cache libc6-compat python3 make g++ coreutils bash; else export DEBIAN_FRONTEND=noninteractive && apt-get -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true -o APT::Update::Post-Invoke::= -o APT::Update::Post-Invoke-Success::= update && apt-get install -y --no-install-recommends --allow-unauthenticated ca-certificates debian-archive-keyring && apt-get -o APT::Update::Post-Invoke::= -o APT::Update::Post-Invoke-Success::= update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*; fi
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
