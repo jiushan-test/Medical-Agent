@@ -223,8 +223,8 @@ function MetricCard({
 }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-        <div className="min-w-0">
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="min-w-[120px] flex-1">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
             {icon}
             <span className="truncate">{title}</span>
@@ -232,7 +232,7 @@ function MetricCard({
           <div className="mt-1 text-lg font-bold text-slate-900">{value}</div>
           {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
         </div>
-        {chart ? <div className="flex justify-end sm:flex-shrink-0">{chart}</div> : null}
+        {chart ? <div className="ml-auto flex-shrink-0">{chart}</div> : null}
       </div>
     </div>
   );

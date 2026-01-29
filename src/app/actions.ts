@@ -114,6 +114,8 @@ function isMedicalRelatedText(text: string): boolean {
 }
 
 function ensurePatientAiStateRow(patientId: string) {
+  const exists = db.prepare('SELECT 1 FROM patients WHERE id = ? LIMIT 1').get(patientId);
+  if (!exists) return;
   db.prepare(
     `INSERT OR IGNORE INTO patient_ai_state (patient_id, medical_inquiry_count) VALUES (?, 0)`
   ).run(patientId);
@@ -155,6 +157,8 @@ function incrementMedicalInquiryCount(patientId: string) {
 }
 
 function insertChatMessage(patientId: string, role: 'user' | 'ai' | 'assistant' | 'doctor', content: string): number {
+  const exists = db.prepare('SELECT 1 FROM patients WHERE id = ? LIMIT 1').get(patientId);
+  if (!exists) return 0;
   const stmt = db.prepare('INSERT INTO chat_messages (patient_id, role, content) VALUES (?, ?, ?)');
   const info = stmt.run(patientId, role, content);
   return Number(info.lastInsertRowid);
@@ -217,6 +221,11 @@ export async function markDoctorConsultationPaidByToken(token: string) {
     .prepare('SELECT id, patient_id, status, fee_cents FROM doctor_consultations WHERE token = ? LIMIT 1')
     .get(token) as { id: number; patient_id: string; status: string; fee_cents: number } | undefined;
   if (!row) return { success: false, reason: 'not_found' as const };
+  const existsPatient = db.prepare('SELECT 1 FROM patients WHERE id = ? LIMIT 1').get(row.patient_id);
+  if (!existsPatient) {
+    db.prepare('DELETE FROM doctor_consultations WHERE id = ?').run(row.id);
+    return { success: false, reason: 'not_found' as const };
+  }
 
   if (row.status === 'paid') return { success: true, patientId: row.patient_id, alreadyPaid: true as const };
   if (row.status === 'ended') return { success: false, reason: 'ended' as const };
@@ -344,6 +353,8 @@ async function storeKeywordsToMemories(
   source: 'patient' | 'doctor' | 'ai' | 'import',
   text: string
 ) {
+  const existsPatient = db.prepare('SELECT 1 FROM patients WHERE id = ? LIMIT 1').get(patientId);
+  if (!existsPatient) return;
   const facts = await safeExtractKeywords(text, source);
   const uniq = Array.from(new Set(facts)).slice(0, 12);
   if (uniq.length === 0) return;
@@ -1012,6 +1023,8 @@ export async function deleteKnowledge(id: number) {
 
 // Action: 获取聊天记录
 export async function getChatHistory(patientId: string) {
+  const exists = db.prepare('SELECT 1 FROM patients WHERE id = ? LIMIT 1').get(patientId);
+  if (!exists) return [] as ChatMessage[];
   await ensurePatientIntroMessage(patientId);
   const stmt = db.prepare('SELECT id, patient_id, role, content, created_at FROM chat_messages WHERE patient_id = ? ORDER BY id ASC');
   return stmt.all(patientId) as ChatMessage[];
