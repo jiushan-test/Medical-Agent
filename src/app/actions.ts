@@ -1147,7 +1147,7 @@ export async function getDoctorCopilot(patientId: string, speaker: 'assistant' |
     ]
       .filter(Boolean)
       .join('，'),
-    patient.persona,
+    patient.persona ?? '',
     memoryText,
     relevantKnowledge,
     speaker,
