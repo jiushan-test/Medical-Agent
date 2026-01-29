@@ -11,7 +11,7 @@ import PatientOverview from '@/components/PatientOverview';
 type DoctorPortalItem = { consultation: DoctorConsultation; patient: Patient };
 
 export default function DoctorPortal({ initialItems }: { initialItems: DoctorPortalItem[] }) {
-  type MemoryItem = { id: number; content: string; source: string; created_at: string };
+  type MemoryItem = { id: number; content: string; source: string | null; created_at: string };
   const [items, setItems] = useState<DoctorPortalItem[]>(initialItems);
   const [selectedConsultationId, setSelectedConsultationId] = useState<number | null>(initialItems[0]?.consultation.id ?? null);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(initialItems[0]?.patient.id ?? null);

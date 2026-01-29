@@ -12,7 +12,7 @@ interface DoctorDashboardProps {
 }
 
 export default function DoctorDashboard({ initialPatients }: DoctorDashboardProps) {
-  type MemoryItem = { id: number; content: string; source: string; created_at: string };
+  type MemoryItem = { id: number; content: string; source: string | null; created_at: string };
   type MsgAnalysis = {
     related_memories: Array<{ content: string; source: string; created_at: string; score: number }>;
     related_knowledge: Array<{ content: string; category: string; score: number }>;
