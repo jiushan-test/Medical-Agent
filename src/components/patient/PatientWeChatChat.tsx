@@ -111,7 +111,13 @@ export default function PatientWeChatChat({ patient, initialHistory }: PatientWe
     setMessages((prev) => [...prev, { id: tempId, role: 'user', content: userMsg }]);
 
     try {
-      const historyForAI = messages.map((m) => ({ role: m.role === 'user' ? 'user' : 'ai', content: m.content }));
+      const historyForAI = messages.map(
+        (m): { role: 'user' | 'ai' | 'assistant' | 'doctor'; content: string } => ({
+          role:
+            m.role === 'user' ? 'user' : m.role === 'assistant' ? 'assistant' : m.role === 'doctor' ? 'doctor' : 'ai',
+          content: m.content,
+        })
+      );
       const result = await processUserMessage(patient.id, userMsg, historyForAI);
       if (result.response) {
         setMessages((prev) => [...prev, { id: `ai_${Date.now()}`, role: 'ai', content: result.response }]);
