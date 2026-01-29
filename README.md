@@ -57,9 +57,13 @@ npm run dev
 - http://localhost:3000
 
 ### 4）可选：生成演示数据
-项目内置了一个简单的种子脚本，会清空 data/local.db 并写入 3 个演示患者：
+项目内置演示数据种子脚本，会清空 data/local.db 并写入多组演示数据（更长的对话、更丰富的记忆/知识库/会诊状态），用于完整展示闭环：
 ```bash
 node scripts/seed-demo.js
+```
+如需指定数据库路径（例如 Docker 数据卷目录），可使用：
+```bash
+DB_PATH=/opt/medical-agent-data/local.db node scripts/seed-demo.js
 ```
 
 ## 入口页面与角色说明

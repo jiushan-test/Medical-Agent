@@ -167,7 +167,38 @@ export async function generateDoctorAssistantIntakeResponse(
 ): Promise<string> {
   type ZhipuMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
-  const sanitizeToThreeQuestions = (raw: string) => {
+  const detectAnsweredSignals = (evidence: string) => {
+    const e = evidence.replace(/\s+/g, '');
+    const yes = (re: RegExp) => re.test(e);
+    const no = (re: RegExp) => re.test(e);
+    return {
+      feverNo: no(/没(有)?发(烧|热)|无发(烧|热)|不发(烧|热)|体温(正常|不高)|无热/),
+      chestPainNo: no(/没(有)?(胸痛|胸闷)|无(胸痛|胸闷)|不(胸痛|胸闷)/),
+      sobNo: no(/没(有)?(气短|气促|喘|呼吸困难)|无(气短|气促|喘|呼吸困难)|不(气短|气促|喘)/),
+      neuroNo: no(/没(有)?(说话不清|口齿不清|单侧无力|偏瘫|嘴歪|麻木)|无(说话不清|口齿不清|单侧无力|偏瘫|嘴歪|麻木)/),
+      syncopeNo: no(/没(有)?(晕厥|黑蒙|昏厥)|无(晕厥|黑蒙|昏厥)/),
+      medsNone: yes(/(目前|现在|暂时)?(还)?没(有)?(服用|吃)(降压药|降糖药|药)|未(服药|用药)/),
+      allergyNone: yes(/没(有)?(过敏|药物过敏)|无(过敏|药物过敏)/),
+    };
+  };
+
+  const isQuestionAbout = (q: string, keys: RegExp[]) => keys.some((r) => r.test(q));
+
+  const filterRedundantQuestions = (questions: string[], evidence: string) => {
+    const s = detectAnsweredSignals(evidence);
+    return questions.filter((q) => {
+      if (s.feverNo && isQuestionAbout(q, [/发烧|发热|体温/])) return false;
+      if (s.chestPainNo && isQuestionAbout(q, [/胸痛|胸闷/])) return false;
+      if (s.sobNo && isQuestionAbout(q, [/气短|气促|呼吸困难|喘/])) return false;
+      if (s.neuroNo && isQuestionAbout(q, [/说话不清|口齿不清|单侧无力|偏瘫|嘴歪|麻木/])) return false;
+      if (s.syncopeNo && isQuestionAbout(q, [/晕厥|黑蒙|昏厥/])) return false;
+      if (s.medsNone && isQuestionAbout(q, [/在用(什么|哪些)?药|目前(有没有)?用药|服药|降压药|降糖药|二甲双胍|胰岛素/])) return false;
+      if (s.allergyNone && isQuestionAbout(q, [/过敏|药物过敏/])) return false;
+      return true;
+    });
+  };
+
+  const normalizeQuestions = (raw: string) => {
     const normalized = raw
       .replace(/\r\n/g, '\n')
       .replace(/^\s*[-*]\s+/gm, '')
@@ -180,16 +211,34 @@ export async function generateDoctorAssistantIntakeResponse(
       .filter(Boolean)
       .map((s) => (s.endsWith('?') ? s.slice(0, -1) + '？' : s));
 
-    const questions = lines.filter((s) => s.endsWith('？')).slice(0, 3);
+    return lines.filter((s) => s.endsWith('？'));
+  };
 
-    if (questions.length === 3) return questions.join('\n');
+  const pickThreeQuestions = (raw: string, evidence: string) => {
+    const qs = filterRedundantQuestions(normalizeQuestions(raw), evidence);
+    const selected = qs.slice(0, 3);
+    if (selected.length === 3) return selected.join('\n');
 
-    const fallback = [
+    const pool = [
       '您现在最主要哪里不舒服？',
       '从什么时候开始的？最近有没有加重或缓解？',
-      '有没有发烧/胸痛/气短/说话不清/单侧无力等情况？',
+      '最近血压/心率大概是多少？有连续测量记录吗？',
+      '头晕时是天旋地转还是发飘/站不稳？和体位变化有关吗？',
+      '有没有恶心/呕吐/腹泻或明显脱水（口干、尿少）？',
+      '今天饮食、睡眠和饮水情况如何？',
+      '有没有发烧/胸痛/气短/说话不清/单侧无力/黑蒙晕厥等情况？',
+      '目前有没有在用药或已知过敏？',
     ];
-    return fallback.join('\n');
+
+    const filled = [...selected];
+    for (const q of pool) {
+      if (filled.length >= 3) break;
+      if (filled.includes(q)) continue;
+      if (!filterRedundantQuestions([q], evidence).length) continue;
+      filled.push(q);
+    }
+    while (filled.length < 3) filled.push('您现在最主要哪里不舒服？');
+    return filled.slice(0, 3).join('\n');
   };
   const systemPrompt = `
 你是${doctorName}的助理，负责在微信中与患者沟通并收集病情信息。
@@ -202,8 +251,9 @@ ${context}
 要求：
 1. 你的回复只能包含“询问句”，用于收集信息；不允许解释病因、不允许给出建议、不允许给出处置方案、不允许提示就医/急诊。
 2. 只输出 3 个简短问题，每个问题单独一行，必须以“？”结尾。
-3. 不要使用编号、列表符号、Markdown，不要出现“建议/可以/应该/需要/先/后/请立刻/急诊”等指导性措辞。
-4. 口吻自然、简短，像真人助理在微信里提问。
+3. 不要重复询问患者已经明确回答过的信息；优先问缺失信息。
+4. 不要使用编号、列表符号、Markdown，不要出现“建议/可以/应该/需要/先/后/请立刻/急诊”等指导性措辞。
+5. 口吻自然、简短，像真人助理在微信里提问。
 `;
 
   const messages: ZhipuMessage[] = [
@@ -223,7 +273,8 @@ ${context}
     temperature: 0.4,
   });
 
-  return sanitizeToThreeQuestions(response.choices[0].message.content || '');
+  const evidence = [context, persona, ...history.map((h) => h.content), query].filter(Boolean).join('\n');
+  return pickThreeQuestions(response.choices[0].message.content || '', evidence);
 }
 
 /**
