@@ -183,10 +183,12 @@ ${context}
 
   const messages: ZhipuMessage[] = [
     { role: 'system', content: systemPrompt },
-    ...history.map((msg) => ({
-      role: msg.role === 'user' ? 'user' : 'assistant',
-      content: msg.content,
-    })),
+    ...history.map(
+      (msg): ZhipuMessage => ({
+        role: (msg.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: msg.content,
+      })
+    ),
     { role: 'user', content: query },
   ];
 
