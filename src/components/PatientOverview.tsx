@@ -232,7 +232,7 @@ function MetricCard({
           <div className="mt-1 text-lg font-bold text-slate-900">{value}</div>
           {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
         </div>
-        <div className="flex-shrink-0">{chart}</div>
+        {chart ? <div className="flex-shrink-0">{chart}</div> : null}
       </div>
     </div>
   );
@@ -345,4 +345,3 @@ export default function PatientOverview({
     </div>
   );
 }
-
