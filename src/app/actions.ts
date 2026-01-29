@@ -189,6 +189,13 @@ function detectDoctorRequest(text: string): boolean {
   );
 }
 
+function detectMedicationOrTreatmentAdviceRequest(text: string): boolean {
+  const t = text.replace(/\s+/g, '');
+  return /推荐.*药|开什么药|开药|处方|药方|剂量|怎么吃药|怎么用药|用药方案|治疗方案|怎么治|如何治疗|需要吃药吗|降压药|降糖药|胰岛素|二甲双胍/.test(
+    t
+  );
+}
+
 export async function startDoctorConsultation(
   patientId: string,
   trigger: 'ai' | 'manual' = 'manual',
@@ -870,6 +877,28 @@ export async function processUserMessage(patientId: string, message: string, his
         '已为您准备医生会诊服务（演示）。\n请回复数字 1 确认接入，确认后我将发送支付链接。\n（提示：支付后医生端才可见并建立会话）';
       insertChatMessage(patientId, 'ai', confirmMsg);
       await storeKeywordsToMemories(patientId, 'ai', '用户请求医生会诊，等待发送1确认');
+      return { response: confirmMsg, relatedFacts: '', intent: 'medical_consult' };
+    }
+
+    if (detectMedicationOrTreatmentAdviceRequest(message)) {
+      const existing = db
+        .prepare(
+          "SELECT id, status FROM doctor_consultations WHERE patient_id = ? AND status IN ('pending','paid') ORDER BY id DESC LIMIT 1"
+        )
+        .get(patientId) as { id: number; status: 'pending' | 'paid' } | undefined;
+
+      if (existing?.status === 'paid') {
+        const reply = '您已完成支付，医生会话已建立。请在本会话中继续描述情况，医生将与您沟通。';
+        insertChatMessage(patientId, 'ai', reply);
+        await storeKeywordsToMemories(patientId, 'ai', '用户咨询用药/治疗，但会诊已支付');
+        return { response: reply, relatedFacts: '', intent: 'medical_consult' };
+      }
+
+      await startDoctorConsultation(patientId, 'ai');
+      const confirmMsg =
+        '关于用药/治疗方案需要由医生在会诊中确认（演示）。\n请回复数字 1 确认接入医生会诊，确认后我将发送支付链接。\n（提示：支付后医生端才可见并建立会话）';
+      insertChatMessage(patientId, 'ai', confirmMsg);
+      await storeKeywordsToMemories(patientId, 'ai', '用户咨询用药/治疗，已引导医生会诊确认');
       return { response: confirmMsg, relatedFacts: '', intent: 'medical_consult' };
     }
 

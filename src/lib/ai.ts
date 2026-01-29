@@ -166,6 +166,31 @@ export async function generateDoctorAssistantIntakeResponse(
   history: Array<{ role: 'user' | 'ai' | 'assistant' | 'doctor'; content: string }> = []
 ): Promise<string> {
   type ZhipuMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+
+  const sanitizeToThreeQuestions = (raw: string) => {
+    const normalized = raw
+      .replace(/\r\n/g, '\n')
+      .replace(/^\s*[-*]\s+/gm, '')
+      .replace(/^\s*\d+[.、]\s*/gm, '')
+      .trim();
+
+    const lines = normalized
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => (s.endsWith('?') ? s.slice(0, -1) + '？' : s));
+
+    const questions = lines.filter((s) => s.endsWith('？')).slice(0, 3);
+
+    if (questions.length === 3) return questions.join('\n');
+
+    const fallback = [
+      '您现在最主要哪里不舒服？',
+      '从什么时候开始的？最近有没有加重或缓解？',
+      '有没有发烧/胸痛/气短/说话不清/单侧无力等情况？',
+    ];
+    return fallback.join('\n');
+  };
   const systemPrompt = `
 你是${doctorName}的助理，负责在微信中与患者沟通并收集病情信息。
 你要做的是“问诊信息采集”，不是替代医生诊断。
@@ -198,7 +223,7 @@ ${context}
     temperature: 0.4,
   });
 
-  return response.choices[0].message.content || '';
+  return sanitizeToThreeQuestions(response.choices[0].message.content || '');
 }
 
 /**
